@@ -10,7 +10,7 @@ if not A_IsAdmin {
 ; ==========================================
 ; KONFIGURATION
 ; ==========================================
-config := {}
+global config := {}
 config.swapKey := "XButton1"      ; Taste zum Wechseln (Leiste wechseln)
 config.keyBar1 := "{NumpadDiv}"   ; Taste für Leiste 1 (/ auf dem Ziffernblock)
 config.keyBar2 := "{NumpadMult}"  ; Taste für Leiste 2 (* auf dem Ziffernblock)
@@ -45,10 +45,10 @@ esoHud.Show("X" config.hudX " Y" config.hudY " w300 h200 NoActivate")
 WinSetTransColor("010000", "ahk_id " esoHud.Hwnd)
 
 ; Permanente Hintergrund-Timer
-SetTimer(CheckBarStatus, 250)
+SetTimer(CheckBarStatus, 500) ; Auf 500ms erhöht für weniger Systemlast
 SetTimer(WatchEsoWindow, 300)
 
-; Dynamische Hotkey-Registrierung (Gilt nur, wenn ESO aktiv ist UND der Cursor versteckt ist)
+; Dynamische Hotkey-Registrierung
 HotIf (*) => WinActive("ahk_exe eso64.exe") and IsEsoCursorHidden()
 Hotkey("*" config.swapKey, OnSwapKeyDown)
 Hotkey("*" config.swapKey " up", OnSwapKeyUp)
@@ -60,13 +60,13 @@ HotIf
 
 OnSwapKeyDown(HotkeyName)
 {
-    global isLocked, releasedEarly
+    global isLocked, releasedEarly, config
     
     if (isLocked) {
         return
     }
     
-    SetTimer(SpamBar1, 0)
+    SetTimer(SpamBar1, 0) ; Bestehenden Spam abbrechen
     
     isLocked := true
     releasedEarly := false
@@ -80,7 +80,7 @@ OnSwapKeyDown(HotkeyName)
 
 OnSwapKeyUp(HotkeyName)
 {
-    global isLocked, releasedEarly
+    global isLocked, releasedEarly, config
     
     if (isLocked) {
         releasedEarly := true 
@@ -94,38 +94,34 @@ OnSwapKeyUp(HotkeyName)
 ; HELFER-FUNKTIONEN
 ; ==========================================
 
-; Mathematische ESO-Cursorerkennung via Windows-API
 IsEsoCursorHidden()
 {
     if not WinActive("ahk_exe eso64.exe")
         return false
 
-    ; 1. PRÜFUNG: Windows-Systemstatus des Cursors auslesen
-    ; CURSORINFO-Struktur anfordern
+    ; 1. PRÜFUNG: Windows-Systemstatus des Cursors
     ci := Buffer(A_PtrSize = 8 ? 24 : 20, 0)
     NumPut("UInt", ci.Size, ci, 0)
     if DllCall("GetCursorInfo", "Ptr", ci) {
         flags := NumGet(ci, 4, "UInt")
-        ; Wenn flags == 0 ist, ist der Cursor im Windows-System komplett unsichtbar geschaltet
         if (flags == 0)
             return true
     }
 
-    ; 2. PRÜFUNG: Ist die Maus exakt im Zentrum des Spiels gefangen (ESO Kampf-Modus)?
-    WinGetPos(&X, &Y, &W, &H, "ahk_exe eso64.exe")
-    centerX := X + (W / 2)
-    centerY := Y + (H / 2)
-    
-    ; Aktuelle physische Mausposition ermitteln
-    CoordMode("Mouse", "Screen")
-    MouseGetPos(&mouseX, &mouseY)
-    
-    ; Erlaubt eine minimale Toleranz von 5 Pixeln im Zentrum
-    if (Abs(mouseX - centerX) <= 5 and Abs(mouseY - centerY) <= 5) {
-        return true ; Maus ist im Zentrum fixiert -> Spieler ist im Kampf/Gameplay
+    ; 2. PRÜFUNG: Maus im echten Spielzentrum (Client-Koordinaten ignorieren Fensterrahmen)
+    try {
+        WinGetClientPos(&X, &Y, &W, &H, "ahk_exe eso64.exe")
+        centerX := W / 2
+        centerY := H / 2
+        
+        CoordMode("Mouse", "Client")
+        MouseGetPos(&mouseX, &mouseY)
+        
+        if (Abs(mouseX - centerX) <= 10 and Abs(mouseY - centerY) <= 10) {
+            return true 
+        }
     }
-
-    return false ; Maus bewegt sich frei -> Spieler ist im Inventar, Chat oder Menü
+    return false 
 }
 
 HumanizedSend(keyToSend)
@@ -148,9 +144,9 @@ ReleaseCooldown()
     global isLocked, releasedEarly
     
     if (releasedEarly) {
-        UpdateBarStatus(1)
         releasedEarly := false
-        SetTimer(SpamBar1, 65)
+        ; Startet den Rückwechsel-Spam, falls die Taste zu früh losgelassen wurde
+        SetTimer(SpamBar1, 65) 
     } else {
         isLocked := false
     }
@@ -158,28 +154,22 @@ ReleaseCooldown()
 
 SpamBar1()
 {
-    global isLocked
+    global isLocked, config
     static counter := 0
     
-    ; Bricht ab, wenn der Cursor im Chat sichtbar wird
-    if (not WinActive("ahk_exe eso64.exe") or not IsEsoCursorHidden()) {
+    ; Abbruchbedingungen
+    if (not WinActive("ahk_exe eso64.exe") or not IsEsoCursorHidden() or GetKeyState(config.swapKey, "P")) {
         SetTimer(SpamBar1, 0)
         counter := 0
         isLocked := false
         return
     }
     
-    if (GetKeyState(config.swapKey, "P")) {
-        SetTimer(SpamBar1, 0)
-        counter := 0
-        isLocked := false
-        return
-    }
-    
+    UpdateBarStatus(1)
     HumanizedSend(config.keyBar1)
     counter++
     
-    if (counter >= 4) {
+    if (counter >= 3) { ; Auf 3 Versuche reduziert (reicht völlig aus und ist sicherer)
         SetTimer(SpamBar1, 0)
         counter := 0
         isLocked := false 
@@ -188,11 +178,12 @@ SpamBar1()
 
 CheckBarStatus()
 {
-    global currentBar, isLocked
+    global currentBar, isLocked, config
     
-    ; Führt den Sicherheits-Reset nur aus, wenn wir uns im echten Gameplay befinden
+    ; Korrektur: Wenn die Taste physisch nicht gedrückt ist, wir aber im HUD noch auf Leiste 2 stehen
     if WinActive("ahk_exe eso64.exe") and IsEsoCursorHidden() and not GetKeyState(config.swapKey, "P") and (currentBar == 2) 
     {
+        SetTimer(SpamBar1, 0) ; Kollisionen mit aktivem Spam verhindern
         isLocked := false 
         UpdateBarStatus(1)
         HumanizedSend(config.keyBar1)
