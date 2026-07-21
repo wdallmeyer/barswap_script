@@ -8,7 +8,7 @@ if not A_IsAdmin {
 }
 
 ; ==========================================
-; CONFIGURATION (Cooldown restored to original safety value)
+; CONFIGURATION
 ; ==========================================
 config := {}
 config.keyBar1 := "{NumpadDiv}"   ; Key bound to Bar 1 (/ on Numpad)
