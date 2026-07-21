@@ -13,7 +13,7 @@ if not A_IsAdmin {
 config := {}
 config.keyBar1 := "{NumpadDiv}"   ; Key bound to Bar 1 (/ on Numpad)
 config.keyBar2 := "{NumpadMult}"  ; Key bound to Bar 2 (* on Numpad)
-config.cooldownTime := 500        ; Wieder auf 500ms erhöht: Verhindert das Steckenbleiben bei schnellem Antippen
+config.cooldownTime := 500
 
 ; HUD-Overlay Settings
 config.hudX := 100                
@@ -44,7 +44,7 @@ esoHud.Show("X" config.hudX " Y" config.hudY " w300 h200 NoActivate")
 WinSetTransColor("111111", "ahk_id " esoHud.Hwnd)
 
 ; Permanent background timers
-SetTimer(CheckBarStatus, 250)     ; Beibehalten: Schneller Desync-Schutz für PvP
+SetTimer(CheckBarStatus, 250)
 SetTimer(WatchEsoWindow, 300)
 
 ; Only execute hotkeys when Elder Scrolls Online is the active window
@@ -103,8 +103,8 @@ ReleaseCooldown()
     
     if (releasedEarly) {
         UpdateBarStatus(1)
-        releasedEarly := false ; Korrektur: Setzt die Variable sauber zurück
-        SetTimer(SpamBar1, 65)  ; Beibehalten: Robusterer Spam-Abstand für PvP-Lag
+        releasedEarly := false
+        SetTimer(SpamBar1, 65)
     } else {
         isLocked := false
     }
@@ -114,7 +114,7 @@ ReleaseCooldown()
 SpamBar1()
 {
     global isLocked
-    static counter := 0 ; Korrektur: Statischer Counter wird bei Fehlern abgefangen
+    static counter := 0
     
     if not WinActive("ahk_exe eso64.exe") {
         SetTimer(SpamBar1, 0)
@@ -126,7 +126,7 @@ SpamBar1()
     Send(config.keyBar1)
     counter++
     
-    if (counter >= 4) { ; Beibehalten: 4 Versuche für bessere Server-Erkennung im PvP
+    if (counter >= 4) {
         SetTimer(SpamBar1, 0)
         counter := 0
         isLocked := false 
