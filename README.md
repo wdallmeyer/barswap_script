@@ -8,3 +8,6 @@ For this to work, you must change the keybindings for Bar 1 and Bar 2 in ESO; th
 You can customize this to your preference by adjusting the variables within the script.
 
 Another feature of the script is the display of the active bar in the top-left corner of the ESO window. For this to work, ESO must be running in fullscreen windowed mode. Alternatively, you can of course use add-ons for this purpose.
+
+A note regarding cheating:
+This script operates in a grey area. However, since it does not execute action sequences (macros), I do not believe it violates ESO's Terms of Service; it merely attempts to fix a poorly designed game mechanic and improve the player experience. Furthermore, it does nothing more than what the macro functions of keyboard and mouse software (e.g., Razer) already offer.
